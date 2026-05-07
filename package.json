@@ -2,10 +2,10 @@
   "name": "telegram-bot",
   "version": "1.0.0",
   "description": "Simple Telegram bot on Node.js + Railway.app",
-  "main": "bot.js",
+  "main": "machu-picchu-bot.js",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "node bot.js"
+    "start": "node machu-picchu-bot.js",
+    "dev": "node machu-picchu-bot.js"
   },
   "keywords": [
     "telegram",
