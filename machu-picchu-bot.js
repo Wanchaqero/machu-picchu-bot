@@ -179,6 +179,7 @@ async function getAvailableSlots(apiDate, nidcircuito, nidruta) {
 
     // Вычислить HMAC
     const code = computeHmac(HMAC_KEY, timestamp);
+    console.log('Request for route ' + nidruta + ': timestamp=' + timestamp + ', code=' + code);
 
     // Подготовить тело запроса
     const body = JSON.stringify({
@@ -201,6 +202,7 @@ async function getAvailableSlots(apiDate, nidcircuito, nidruta) {
 
     if (!respJson.estado) {
       console.log('API returned error for route ' + nidruta);
+      console.log('Full API response:', JSON.stringify(respJson));
       return null;
     }
 
@@ -242,6 +244,7 @@ function fetchJson(url, options = {}) {
 
     const req = lib.request(reqOptions, (res) => {
       let data = '';
+      console.log('HTTP ' + res.statusCode + ': ' + reqOptions.method + ' ' + reqOptions.path);
       res.on('data', chunk => (data += chunk));
       res.on('end', () => {
         try {
