@@ -346,4 +346,8 @@ bot.on('polling_error', (error) => {
 });
 
 bot.on('error', (error) => {
+  console.error('Bot error:', error.message);
+});
+
+console.log('Allowed users:', ALLOWED_USERS);
   
