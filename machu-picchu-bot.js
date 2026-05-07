@@ -7,7 +7,7 @@ const CryptoJS = require('crypto-js');
 // SETTINGS
 // ==========================================
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8313303866:AAHnYBhxejha6oPiZlpK_oeJdeoZGny1220';
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 const ALLOWED_USERS = process.env.ALLOWED_USERS
   ? process.env.ALLOWED_USERS.split(',').map(id => parseInt(id.trim()))
   : [7575536082]; // Add user IDs separated by comma
