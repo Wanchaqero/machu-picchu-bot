@@ -1,0 +1,24 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "description": "Simple Telegram bot on Node.js + Railway.app",
+  "main": "machu-picchu-bot.js",
+  "scripts": {
+    "start": "node machu-picchu-bot.js",
+    "dev": "node machu-picchu-bot.js"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "node.js"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0",
+    "crypto-js": "^4.1.1"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
