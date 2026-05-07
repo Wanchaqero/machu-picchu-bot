@@ -350,4 +350,3 @@ bot.on('error', (error) => {
 });
 
 console.log('Allowed users:', ALLOWED_USERS);
-  console.error('Bot er
