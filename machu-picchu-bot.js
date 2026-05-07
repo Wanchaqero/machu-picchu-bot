@@ -143,8 +143,13 @@ async function handleCheck(chatId, text) {
   const resultLines = ['📅 ' + displayDate + '\n'];
   let totalFound = 0;
 
+  // Helper function to add delay between requests
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
   for (const route of routesToCheck) {
     try {
+      // Add 500ms delay to avoid API rate limiting and IP blocking
+      await delay(500);
       const slots = await getAvailableSlots(apiDate, route.nidcircuito, route.nidruta);
 
       if (slots === null || slots.length === 0) {
