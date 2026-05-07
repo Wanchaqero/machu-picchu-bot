@@ -157,12 +157,12 @@ async function handleCheck(chatId, text) {
       else if (ROUTES['C2'].includes(route)) routeCircuit = 'C2';
       else if (ROUTES['C3'].includes(route)) routeCircuit = 'C3';
 
-      resultLines.push('🟢 ' + route.label + ':');
+      // Add warning emoji for C2 circuits
+      const prefix = routeCircuit === 'C2' ? '⚠️ ' : '🟢 ';
+      resultLines.push(prefix + route.label + ':');
       for (const slot of slots) {
         const time = slot.dhora_ini.substring(0, 5);
-        // Bold formatting for C2 circuit
-        const seats = routeCircuit === 'C2' ? '**' + slot.ncupo_actual + '**' : slot.ncupo_actual;
-        resultLines.push('   ' + time + ' — ' + seats + ' seats');
+        resultLines.push('   ' + time + ' — ' + slot.ncupo_actual + ' seats');
       }
       resultLines.push('');
       totalFound += slots.length;
@@ -350,4 +350,4 @@ bot.on('error', (error) => {
 });
 
 console.log('Allowed users:', ALLOWED_USERS);
-  
+  console.error('Bot er
