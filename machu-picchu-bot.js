@@ -235,11 +235,20 @@ function fetchJson(url, options = {}) {
     const isHttps = url.startsWith('https');
     const lib = isHttps ? require('https') : require('http');
 
+    const defaultHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'es-PE,es;q=0.9',
+      'Origin': 'https://tuboleto.cultura.pe',
+      'Referer': 'https://tuboleto.cultura.pe/',
+      'Connection': 'keep-alive'
+    };
+
     const reqOptions = {
       hostname: urlObj.hostname,
       path: urlObj.pathname + urlObj.search,
       method: options.method || 'GET',
-      headers: options.headers || {}
+      headers: { ...defaultHeaders, ...options.headers }
     };
 
     const req = lib.request(reqOptions, (res) => {
