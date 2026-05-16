@@ -31,7 +31,7 @@ const ROUTES = {
     { label: 'Ruta 1-A\n$75 USD\nMountain MP', nidcircuito: 1, nidruta: 7 },
     { label: 'Ruta 1-B\n$55 USD', nidcircuito: 1, nidruta: 8 },
     { label: 'Ruta 1-C\n$55 USD', nidcircuito: 1, nidruta: 9 },
-    { label: 'Ruta 1-D\n$50 USD', nidcircuito: 1, nidruta: 10 }
+    { label: 'Ruta 1-D\n$55 USD', nidcircuito: 1, nidruta: 10 }
   ],
   'C2': [
     { label: 'Ruta 2-A\n$55 USD', nidcircuito: 2, nidruta: 11 },
