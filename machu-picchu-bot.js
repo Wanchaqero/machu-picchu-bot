@@ -12,6 +12,11 @@ const ALLOWED_USERS = process.env.ALLOWED_USERS
   ? process.env.ALLOWED_USERS.split(',').map(id => parseInt(id.trim()))
   : [7575536082]; // Add user IDs separated by comma
 
+// Delay between routes (ms). Randomized between MIN and MAX so the request
+// pattern looks less robotic and is less likely to trigger an IP block.
+const DELAY_MIN_MS = parseInt(process.env.DELAY_MIN_MS || '3000', 10);
+const DELAY_MAX_MS = parseInt(process.env.DELAY_MAX_MS || '6000', 10);
+
 // ==========================================
 // API CONSTANTS
 // ==========================================
@@ -142,17 +147,26 @@ async function handleCheck(chatId, text) {
 
   const resultLines = ['📅 ' + displayDate + '\n'];
   let totalFound = 0;
+  let errorCount = 0;
+  let lastError = null;
 
   // Helper function to add delay between requests
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const randomDelay = () =>
+    DELAY_MIN_MS + Math.floor(Math.random() * Math.max(0, DELAY_MAX_MS - DELAY_MIN_MS));
 
+  let first = true;
   for (const route of routesToCheck) {
     try {
-      // Add 500ms delay to avoid API rate limiting and IP blocking
-      await delay(500);
+      // Randomized delay between routes to avoid rate limiting / IP blocking.
+      // Skip the wait before the very first route so a single-route check stays snappy.
+      if (!first) {
+        await delay(randomDelay());
+      }
+      first = false;
       const slots = await getAvailableSlots(apiDate, route.nidcircuito, route.nidruta);
 
-      if (slots === null || slots.length === 0) {
+      if (!slots || slots.length === 0) {
         continue;
       }
 
@@ -172,14 +186,33 @@ async function handleCheck(chatId, text) {
       resultLines.push('');
       totalFound += slots.length;
     } catch (err) {
+      errorCount++;
+      lastError = err;
       console.error('Error checking route ' + route.nidruta + ':', err.message);
     }
   }
 
-  if (totalFound === 0) {
-    bot.sendMessage(chatId, '❌ No available tickets for ' + displayDate);
-  } else {
+  if (totalFound > 0) {
     bot.sendMessage(chatId, resultLines.join('\n'));
+  } else if (errorCount > 0) {
+    // The check failed (e.g. IP block) — do NOT mislead the user with "no seats".
+    if (lastError && lastError.statusCode === 403) {
+      bot.sendMessage(
+        chatId,
+        '⚠️ Could not check tickets — the ticket service temporarily blocked our IP ' +
+        '(403: suspected automated behavior). This does NOT mean tickets are sold out. ' +
+        'Please try again later.'
+      );
+    } else {
+      bot.sendMessage(
+        chatId,
+        '⚠️ Could not check tickets right now — service error' +
+        (lastError && lastError.message ? ': ' + lastError.message : '') +
+        '. This does NOT mean tickets are sold out. Please try again later.'
+      );
+    }
+  } else {
+    bot.sendMessage(chatId, '❌ No available tickets for ' + displayDate);
   }
 }
 
@@ -188,57 +221,47 @@ async function handleCheck(chatId, text) {
 // ==========================================
 
 async function getAvailableSlots(apiDate, nidcircuito, nidruta) {
-  try {
-    // Get server time
-    const timeData = await fetchJson(API_BASE + '/comunes/tiempo-servidor');
-    const timestamp = timeData.tiempoServidor;
+  // Get server time (throws on 403 / non-2xx — caller must not treat that as "no seats")
+  const timeData = await fetchJson(API_BASE + '/comunes/tiempo-servidor');
+  const timestamp = timeData.tiempoServidor;
 
-    // Calculate HMAC
-    const code = computeHmac(HMAC_KEY, timestamp);
-    console.log('Request for route ' + nidruta + ': timestamp=' + timestamp + ', code=' + code);
+  // Calculate HMAC
+  const code = computeHmac(HMAC_KEY, timestamp);
+  console.log('Request for route ' + nidruta + ': timestamp=' + timestamp + ', code=' + code);
 
-    // Prepare request body
-    const body = JSON.stringify({
-      nidruta: nidruta,
-      nidcircuito: nidcircuito,
-      nidlugar: NID_LUGAR,
-      df_inicio: apiDate,
-      valorPunto: 0,
-      token: '',
-      code: code,
-      timestamp: timestamp
-    });
+  // Prepare request body
+  const body = JSON.stringify({
+    nidruta: nidruta,
+    nidcircuito: nidcircuito,
+    nidlugar: NID_LUGAR,
+    df_inicio: apiDate,
+    valorPunto: 0,
+    token: '',
+    code: code,
+    timestamp: timestamp
+  });
 
-    // Send request
-    const respJson = await fetchJson(API_BASE + '/visita/consulta-horarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body
-    });
+  // Send request
+  const respJson = await fetchJson(API_BASE + '/visita/consulta-horarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body
+  });
 
-    if (!respJson.estado) {
-      console.log('API returned error for route ' + nidruta);
-      console.log('Full API response:', JSON.stringify(respJson));
-      return null;
-    }
-
-    // Decrypt data
-    const encryptedData = respJson.data;
-    const decrypted = aesDecrypt(encryptedData);
-
-    if (!decrypted) {
-      console.log('Decryption failed for route ' + nidruta);
-      return null;
-    }
-
-    const slots = JSON.parse(decrypted);
-    const available = slots.filter(s => s.ncupo_actual > 0);
-    return available;
-
-  } catch (err) {
-    console.error('getAvailableSlots error:', err.message);
-    return null;
+  if (!respJson.estado) {
+    console.log('API returned error for route ' + nidruta);
+    console.log('Full API response:', JSON.stringify(respJson));
+    throw new Error(respJson.message || 'API returned estado=false');
   }
+
+  // Decrypt data
+  const decrypted = aesDecrypt(respJson.data);
+  if (!decrypted) {
+    throw new Error('Decryption failed');
+  }
+
+  const slots = JSON.parse(decrypted);
+  return slots.filter(s => s.ncupo_actual > 0);
 }
 
 // ==========================================
@@ -272,11 +295,27 @@ function fetchJson(url, options = {}) {
       console.log('HTTP ' + res.statusCode + ': ' + reqOptions.method + ' ' + reqOptions.path);
       res.on('data', chunk => (data += chunk));
       res.on('end', () => {
+        let parsed = null;
         try {
-          resolve(JSON.parse(data));
+          parsed = JSON.parse(data);
         } catch (err) {
-          reject(err);
+          const e = new Error('HTTP ' + res.statusCode + ': invalid JSON response');
+          e.statusCode = res.statusCode;
+          reject(e);
+          return;
         }
+
+        // A non-2xx status is a request failure (e.g. 403 IP block),
+        // NOT an empty/"no seats" result — surface it as an error.
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          const e = new Error((parsed && parsed.message) || ('HTTP ' + res.statusCode));
+          e.statusCode = res.statusCode;
+          e.body = parsed;
+          reject(e);
+          return;
+        }
+
+        resolve(parsed);
       });
     });
 
